@@ -37,6 +37,8 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
+void MU();
+void checkForChar();
 
 /* USER CODE END PM */
 
@@ -44,8 +46,11 @@
 
 /* USER CODE BEGIN PV */
 uint32_t previousMillis = 0;
-uint8_t msg_in[0] = "";
+uint8_t msg_in[10] = "";
 uint16_t Giamarco = 0;
+uint8_t msg_correct[3] = "ok!";
+uint8_t msg_error[14] = "invalid input!";
+uint8_t prev_msg[10] = "";
 
 /* USER CODE END PV */
 
@@ -89,70 +94,6 @@ int main(void) {
 	MX_GPIO_Init();
 	MX_USART1_UART_Init();
 	/* USER CODE BEGIN 2 */
-	void MU() {
-		switch (Giamarco) {
-		case 1:
-			if (HAL_GetTick() - previousMillis >= 50) {
-				// save the last time you blinked the LED
-				previousMillis = HAL_GetTick();
-				HAL_GPIO_TogglePin(Led_GPIO_Port, Led_Pin); //change led state
-
-			}
-			break;
-		case 2:
-			if (HAL_GetTick() - previousMillis >= 200) {
-				// save the last time you blinked the LED
-				previousMillis = HAL_GetTick();
-				HAL_GPIO_TogglePin(Led_GPIO_Port, Led_Pin); //change led state
-
-			}
-			break;
-		case 3:
-			if (HAL_GetTick() - previousMillis >= 500) {
-				// save the last time you blinked the LED
-				previousMillis = HAL_GetTick();
-				HAL_GPIO_TogglePin(Led_GPIO_Port, Led_Pin); //change led state
-
-			}
-			break;
-		case 0:
-			HAL_GPIO_WritePin(Led_GPIO_Port, Led_Pin, RESET);
-		}
-	}
-	void checkForChar() {
-
-		HAL_UART_Receive(&huart1, &msg_in[0], 1, 10);
-
-		switch (msg_in[0]) {
-		case '1':
-			Giamarco = 1;
-			break;
-		case '2':
-			Giamarco = 2;
-			break;
-		case '3':
-			Giamarco = 3;
-			break;
-		case '0':
-			Giamarco = 0;
-			break;
-		}
-//		if (msg_in[0] == '1') {
-//			Giamarco = 1;
-//		}
-//		if (msg_in[0] == '2') {
-//			Giamarco = 2;
-//		}
-//		if (msg_in[0] == '3') {
-//			Giamarco = 3;
-//		}
-//		if (msg_in[0] == '0') {
-//			Giamarco = 0;
-//		}
-
-
-
-	}
 
 	/* USER CODE END 2 */
 
@@ -215,6 +156,97 @@ void SystemClock_Config(void) {
 }
 
 /* USER CODE BEGIN 4 */
+void MU() {
+	switch (Giamarco) {
+	case 1:
+		if (HAL_GetTick() - previousMillis >= 50) {
+			// save the last time you blinked the LED
+			previousMillis = HAL_GetTick();
+			HAL_GPIO_TogglePin(Led_GPIO_Port, Led_Pin); //change led state
+
+		}
+		break;
+	case 2:
+		if (HAL_GetTick() - previousMillis >= 200) {
+			// save the last time you blinked the LED
+			previousMillis = HAL_GetTick();
+			HAL_GPIO_TogglePin(Led_GPIO_Port, Led_Pin); //change led state
+
+		}
+		break;
+	case 3:
+		if (HAL_GetTick() - previousMillis >= 500) {
+			// save the last time you blinked the LED
+			previousMillis = HAL_GetTick();
+			HAL_GPIO_TogglePin(Led_GPIO_Port, Led_Pin); //change led state
+
+		}
+		break;
+	case 0:
+		HAL_GPIO_WritePin(Led_GPIO_Port, Led_Pin, RESET);
+
+	}
+}
+void checkForChar() {
+
+	HAL_UART_Receive(&huart1, &msg_in[0], sizeof msg_in / sizeof *msg_in, 50);
+	int counter = 0;
+	for (int i = 0; i < sizeof msg_in / sizeof *msg_in; i++) {
+		if (msg_in[i] != '\000') {
+			counter++;
+		}
+
+	}
+	if (counter > 1) {
+		HAL_UART_Transmit(&huart1, &msg_error[0], 14, 10);
+		for (int i = 0; i < sizeof msg_in / sizeof *msg_in; i++) {
+			msg_in[i] = '\000';
+		}
+
+	} else {
+		switch (msg_in[0]) {
+		case '1':
+			Giamarco = 1;
+
+			if (msg_in[0] != prev_msg[0]) {
+				HAL_UART_Transmit(&huart1, &msg_correct[0], 3, 10);
+				prev_msg[0] = msg_in[0];
+			}
+
+			break;
+		case '2':
+			Giamarco = 2;
+			if (msg_in[0] != prev_msg[0]) {
+				HAL_UART_Transmit(&huart1, &msg_correct[0], 3, 10);
+				prev_msg[0] = msg_in[0];
+			}
+			break;
+		case '3':
+			Giamarco = 3;
+			if (msg_in[0] != prev_msg[0]) {
+				HAL_UART_Transmit(&huart1, &msg_correct[0], 3, 10);
+				prev_msg[0] = msg_in[0];
+			}
+			break;
+		case '0':
+			Giamarco = 0;
+			if (msg_in[0] != prev_msg[0]) {
+				HAL_UART_Transmit(&huart1, &msg_correct[0], 3, 10);
+				prev_msg[0] = msg_in[0];
+			}
+			break;
+		case ' ':
+			break;
+
+		default:
+			if (msg_in[0] != prev_msg[0]) {
+				HAL_UART_Transmit(&huart1, &msg_error[0], 14, 10);
+				prev_msg[0] = msg_in[0];
+			}
+
+		}
+	}
+}
 
 /* USER CODE END 4 */
 
