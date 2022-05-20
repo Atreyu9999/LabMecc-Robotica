@@ -21,6 +21,7 @@
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include "stdbool.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -34,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-void setPow(int i);
+//void setPow(int i);
 void chooseLed(int k);
 void LedOff();
 /* USER CODE END PD */
@@ -49,8 +50,7 @@ void LedOff();
 /* USER CODE BEGIN PV */
 
 uint8_t msg_in[7];
-uint8_t msg_debug[3] = "log";
-uint32_t earthquake = 0;
+
 
 uint32_t message_received = 0;
 uint64_t k = 0;
@@ -62,6 +62,13 @@ uint32_t led_time = 0;
 uint32_t led_time2 = 0;
 uint32_t my_time = 0;
 uint32_t my_time2 = 0;
+uint32_t z = 0;
+uint32_t x = 0;
+uint32_t l1 = 0;
+uint32_t l2 = 0;
+uint8_t msg_err[12] = "error input";
+uint8_t msg_def[13] = "correct input";
+uint32_t vectSize = 0;
 
 /* USER CODE END PV */
 
@@ -105,12 +112,12 @@ int main(void) {
 	MX_GPIO_Init();
 	MX_TIM1_Init();
 	MX_USART1_UART_Init();
-	MX_TIM2_Init();
+	MX_TIM16_Init();
 	/* USER CODE BEGIN 2 */
-	HAL_UART_Receive_IT(&huart1, msg_in, 7);
-	HAL_TIM_Base_Start_IT(&htim2);
-	my_time = HAL_GetTick();
-	my_time2 = HAL_GetTick();
+	HAL_UART_Receive_IT(&huart1, &msg_in[0], sizeof msg_in / sizeof *msg_in);
+	HAL_TIM_Base_Start_IT(&htim16);
+
+
 
 	led_time = my_time;
 	led_time2 = my_time2;
@@ -120,11 +127,44 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
+		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+		HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
 		if (message_received) {
 			message_received = 0;
 			k = 0;
 			j = 0;
 			i = 0;
+			for (int a = 0; a < sizeof msg_in / sizeof *msg_in; a++) {
+				if (msg_in[a] != '\000') {
+					vectSize++;
+				}
+			}
+			if (vectSize != 7) {
+				HAL_UART_Transmit(&huart1, &msg_err[0], 12, 20);
+				for (int b = 0; b < sizeof msg_in / sizeof *msg_in; b++) {
+					msg_in[b] = '\000';
+				}
+
+			} else if (msg_in[0] - '0' != 1 && msg_in[0] - '0' != 2
+					&& msg_in[0] - '0' != 3 && msg_in[0] - '0' != 4) {
+
+				HAL_UART_Transmit(&huart1, &msg_err[0], 12, 20);
+				for (int b = 0; b < sizeof msg_in / sizeof *msg_in; b++) {
+					msg_in[b] = '\000';
+				}
+			} else if (isdigit(msg_in[1]) == false
+					|| isdigit(msg_in[2]) == false
+					|| isdigit(msg_in[3]) == false
+					|| isdigit(msg_in[4]) == false
+					|| isdigit(msg_in[5]) == false
+					|| isdigit(msg_in[6]) == false) {
+				HAL_UART_Transmit(&huart1, &msg_err[0], 12, 20);
+				for (int b = 0; b < sizeof msg_in / sizeof *msg_in; b++) {
+					msg_in[b] = '\000';
+				}
+			} else {
+				HAL_UART_Transmit(&huart1, &msg_def[0], 13, 20);
+			}
 
 			k = (int) (msg_in[0] - '0');
 			for (int w = 1; w <= 3; w++) {
@@ -133,7 +173,7 @@ int main(void) {
 
 			uint8_t counter = 0;
 			for (int m = 2; m >= 0; m--) {
-				//	i = 10 * i + p[m];
+
 				i += p[m] * (int) pow(10.0, counter);
 				counter++;
 			}
@@ -146,19 +186,14 @@ int main(void) {
 				j += f[m] * (int) pow(10.0, counter);
 				counter++;
 			}
-			HAL_UART_Receive_IT(&huart1, msg_in, 7);
+
+			vectSize = 0;
+			HAL_UART_Receive_IT(&huart1, &msg_in[0],sizeof msg_in / sizeof *msg_in);
 
 		}
-		if(message_received == 0) {
-			chooseLed(k);
-			setPow(i);
-			LedOff();
-		}
+		chooseLed(k);
+		LedOff();
 
-
-//			if(j == 999) {
-//				HAL_UART_Transmit(&huart1, msg_debug, 3, 20);
-//			}
 
 		/* USER CODE END WHILE */
 
@@ -214,84 +249,92 @@ void SystemClock_Config(void) {
 
 /* USER CODE BEGIN 4 */
 void chooseLed(int k) {
-	if (my_time - led_time > j / 2) {
+	if (my_time - led_time > j / 50) {
 		led_time = my_time;
+		my_time2 -= j / 50;
+
 		switch (k) {
 		case 1:
-			HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
+			htim1.Instance->CCR1 = i;
+			z = i;
+			if (l2 != 0) {
+				htim1.Instance->CCR2 = x;
+			}
+			l1 = 1;
 
 			break;
 
 		case 2:
-			HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
+			htim1.Instance->CCR2 = i;
+			x = i;
+			if (l1 != 0) {
+				htim1.Instance->CCR1 = z;
+			}
+			l2 = 1;
 
 			break;
 		case 0:
 			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
 			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+			l1 = 0;
+			l2 = 0;
 			break;
 		case 3:
 			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
+			if (l2 == 1) {
+				htim1.Instance->CCR2 = i;
+			}
+			l1 = 0;
+
 			break;
 		case 4:
 			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
+			if (l1 == 1) {
+				htim1.Instance->CCR1 = i;
+			}
+			l2 = 0;
 			break;
 
 		}
-		earthquake = 1;
-	}
-
-}
-
-void setPow(int i) {
-	switch (k) {
-	case 0:
-		htim1.Instance->CCR1 = 0;
-		htim1.Instance->CCR2 = 0;
-
-		break;
-	case 1:
-		htim1.Instance->CCR1 = i;
-		break;
-	case 2:
-
-		htim1.Instance->CCR2 = i;
-	case 3:
-		htim1.Instance->CCR1 = 0;
-		break;
-	case 4:
-		htim1.Instance->CCR2 = 0;
-		break;
 
 	}
 
 }
+
+//void setPow(int i) {
+//	switch (k) {
+//	case 0:
+//		htim1.Instance->CCR1 = 0;
+//		htim1.Instance->CCR2 = 0;
+//
+//		break;
+//	case 1:
+//		htim1.Instance->CCR1 = i;
+//		break;
+//	case 2:
+//
+//		htim1.Instance->CCR2 = i;
+//		break;
+//	case 3:
+//		htim1.Instance->CCR1 = 0;
+//		break;
+//	case 4:
+//		htim1.Instance->CCR2 = 0;
+//		break;
+//
+//	}
+//
+//}
 
 void LedOff() {
-	if (my_time2 - led_time2 > j / 2) {
+	if (my_time2 - led_time2 > j / 50) {
 		led_time2 = my_time2;
-		switch (k) {
-		case 0:
-			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
-			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-
-			break;
-		case 1:
-			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
-			break;
-		case 2:
-
-			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-			break;
-		case 3:
-			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_1);
-			break;
-		case 4:
-			HAL_TIM_PWM_Stop(&htim1, TIM_CHANNEL_2);
-			break;
-
+		if (l1 == 1) {
+			htim1.Instance->CCR1 = 0;
 		}
-		earthquake = 0;
+		if (l2 == 1) {
+			htim1.Instance->CCR2 = 0;
+		}
 
 	}
 
@@ -328,4 +371,6 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
+
 
